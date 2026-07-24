@@ -1,3 +1,4 @@
+import ws from 'ws';
 const express = require('express');
 require('dotenv').config();
 
