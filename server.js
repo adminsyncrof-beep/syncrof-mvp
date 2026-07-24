@@ -17,6 +17,8 @@ app.post('/create-payment-intent', (req, res) => {
   res.json({ clientSecret: 'test123' });
 });
 
-app.listen(3000, () => {
-  console.log('SYNCROF running');
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('SYNCROF listening on port ' + PORT);
 });
