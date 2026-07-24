@@ -1,7 +1,24 @@
-// At top of file after imports
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
+// Initialize Express
+const app = express();
+app.use(express.json());
+
+// Initialize Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY,
+  { realtime: { transport: require('ws') } }
+);
+
+// === YOUR ROUTES START HERE ===
+
+// Log usage function
 async function logUsage(stripeId, model, tokens) {
   try {
-    const cost = tokens * 0.00005; // Simple pricing
+    const cost = tokens * 0.00005;
     await supabase.from('usage_logs').insert({
       user_stripe_id: stripeId,
       model: model,
@@ -13,7 +30,12 @@ async function logUsage(stripeId, model, tokens) {
   }
 }
 
-// In your API endpoint, after calling the model:
+// Test endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// API endpoint
 app.post('/api/chat', async (req, res) => {
   const { apiKey, message, model } = req.body;
 
@@ -26,12 +48,15 @@ app.post('/api/chat', async (req, res) => {
 
   if (!user) return res.status(401).json({ error: 'Invalid key' });
 
-  // Call your API (LiteLLM, Claude, etc)
-  // ... existing code ...
-
-  // Log usage (after getting token count)
-  const tokensUsed = 100; // Replace with actual token count
+  // Log usage
+  const tokensUsed = 100;
   await logUsage(user.stripe_customer_id, model, tokensUsed);
 
-  res.json({ response: '...' });
+  res.json({ response: 'Success', tokensUsed });
+});
+
+// Start server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
