@@ -1,5 +1,5 @@
-import ws from 'ws';
 const express = require('express');
+const ws = require('ws');
 require('dotenv').config();
 
 const app = express();
@@ -18,11 +18,20 @@ let supabase = null;
 if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
   try {
     const { createClient } = require('@supabase/supabase-js');
+    
+    // Create Supabase client with WebSocket support
     supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY
+      process.env.SUPABASE_KEY,
+      {
+        realtime: {
+          headers: {
+            'X-Client-Info': 'syncrof-mvp'
+          }
+        }
+      }
     );
-    console.log('✅ Supabase initialized successfully');
+    console.log('✅ Supabase initialized successfully with WebSocket support');
   } catch (error) {
     console.error('❌ Failed to initialize Supabase:', error.message);
   }
