@@ -1,6 +1,11 @@
+================================================================================
+FIXED server.js - WebSocket Support for Node.js 20
+================================================================================
+
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -8,7 +13,11 @@ const app = express();
 
 let supabase = null;
 if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_KEY,
+    { realtime: { transport: ws } }
+  );
   console.log('Supabase connected');
 }
 
@@ -110,3 +119,42 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('SYNCROF API running on port ' + PORT);
 });
+
+================================================================================
+KEY FIX:
+================================================================================
+
+Added: const ws = require('ws');
+
+Changed Supabase initialization from:
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+To:
+  supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY,
+    { realtime: { transport: ws } }
+  );
+
+This tells Supabase to use the ws package for WebSocket connections on Node.js 20.
+
+================================================================================
+UPDATE STEPS:
+================================================================================
+
+1. Go to GitHub: https://github.com/adminsyncrof-beep/syncrof-mvp
+2. Click server.js
+3. Click pencil (edit)
+4. Ctrl+A (select all)
+5. Delete
+6. Copy code above (from const express to last })
+7. Paste
+8. Scroll down
+9. Commit: "Fix WebSocket support for Node.js 20"
+10. Click "Commit changes"
+11. Wait 3 minutes for Railway
+12. Check: https://syncrof-mvp-production.up.railway.app
+
+Should show models and no errors!
+
+================================================================================
