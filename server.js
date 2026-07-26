@@ -1,26 +1,12 @@
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+const crypto = require('crypto');
 
-// Initialize Express
-const app = express();
-app.use(express.json());
-
-// Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY,
-  { realtime: { transport: require('ws') } }
-);
-
-// === YOUR ROUTES START HERE ===
-
-// Log usage function
-async function logUsage(stripeId, model, tokens) {
+// Log usage — matches Lovable's expected schema
+async function logUsage(userId, model, tokens) {
   try {
     const cost = tokens * 0.00005;
     await supabase.from('usage_logs').insert({
-      user_stripe_id: stripeId,
+      user_id: userId,                       // Supabase uuid, NOT stripe id
+      request_id: crypto.randomUUID(),       // unique per request
       model: model,
       tokens: tokens,
       cost_usd: cost,
@@ -30,33 +16,31 @@ async function logUsage(stripeId, model, tokens) {
   }
 }
 
-// Test endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
 // API endpoint
 app.post('/api/chat', async (req, res) => {
   const { apiKey, message, model } = req.body;
 
-  // Get user
+  // Look up user by API key — select the uuid `id` column
   const { data: user } = await supabase
     .from('users')
-    .select('stripe_customer_id')
+    .select('id, budget_balance')
     .eq('litellm_key', apiKey)
     .single();
 
   if (!user) return res.status(401).json({ error: 'Invalid key' });
+  if (user.budget_balance <= 0) return res.status(402).json({ error: 'Insufficient funds' });
 
-  // Log usage
-  const tokensUsed = 100;
-  await logUsage(user.stripe_customer_id, model, tokensUsed);
+  // ... your model call here ...
+  const tokensUsed = 100; // replace with real token count later
 
-  res.json({ response: 'Success', tokensUsed });
-});
+  await logUsage(user.id, model, tokensUsed);
 
-// Start server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  // Deduct from balance
+  const cost = tokensUsed * 0.00005;
+  await supabase
+    .from('users')
+    .update({ budget_balance: user.budget_balance - cost })
+    .eq('id', user.id);
+
+  res.json({ response: 'Success', tokensUsed, remainingBalance: user.budget_balance - cost });
 });
